@@ -1,0 +1,8 @@
+[package]
+name = "crust"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+home = "0.5.9"
+toml = "0.8.12"
