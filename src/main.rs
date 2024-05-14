@@ -1,8 +1,19 @@
-use std::{fs, io::{Read, Write}, path::{Path, PathBuf}};
+mod directories;
 
-struct Config {
+use std::{fs, io::{Read, Write}, path::{Path, PathBuf}};
+use serde::Deserialize;
+
+use crate::directories::handle_directories;
+
+#[derive(Deserialize)]
+struct Backup {
     envvars: toml::value::Array,
     directories: toml::value::Array
+}
+
+#[derive(Deserialize)]
+struct Config {
+    backup: Backup
 }
 
 fn main() {
@@ -33,5 +44,13 @@ fn main() {
     let mut src = String::new();
     file.read_to_string(&mut src);
     println!("{}", src);
-    let toml_config = toml::from_str(&src.as_str());
+    let config: Config  = match toml::from_str(src.as_str()) {
+        Ok(r) => r,
+        Err(e) => {
+            println!("{}", e);
+            return;
+        }
+    };
+    println!("{:?}", config.backup.envvars);
+    handle_directories(config.backup.directories);
 }

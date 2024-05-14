@@ -5,4 +5,6 @@ edition = "2021"
 
 [dependencies]
 home = "0.5.9"
+serde = { version = "1.0.201", features = ["derive"] }
 toml = "0.8.12"
+zstd = "0.13.1"
