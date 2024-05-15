@@ -1,8 +1,8 @@
 mod directories;
+mod error;
 
 use std::{fs, io::{Read, Write}, path::{Path, PathBuf}};
 use serde::Deserialize;
-
 use crate::directories::handle_directories;
 
 #[derive(Deserialize)]
@@ -34,10 +34,10 @@ fn main() {
         }
     };
     if !already_setup {
-        println!("blabla");
         fs::create_dir_all(&config_dir_path).unwrap();
         let mut file = fs::File::create(&config_file_path).unwrap();
-        file.write_all(config_dir_path.to_str().unwrap().as_bytes());
+        file.write_all(config_dir_path.to_str().unwrap().as_bytes()); // Write a valid TOML
+                                                                           // config instead
     }
 
     let mut file = fs::File::open(config_file_path).unwrap();

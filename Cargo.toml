@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+chrono = { version = "0.4.38", features = ["alloc"] }
 home = "0.5.9"
 serde = { version = "1.0.201", features = ["derive"] }
 toml = "0.8.12"
