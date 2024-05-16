@@ -1,13 +1,7 @@
-use std::{fs::{copy, read_dir, DirBuilder}, path::PathBuf, str::FromStr};
-use chrono::{format::{DelayedFormat, StrftimeItems}, offset::Local};
+use std::{fs::{copy, read_dir, DirBuilder}, path::{PathBuf, Path}, str::FromStr};
 use home::home_dir;
 
-pub fn handle_paths(fs_entries: toml::value::Array, datetime: &DelayedFormat<StrftimeItems>) {
-    // let tmp_path: &Path = Path::new("/tmp/crust/");
-    let mut tmp_pathbuf = PathBuf::new();
-    tmp_pathbuf.push("/tmp/crust");
-    tmp_pathbuf.push(datetime.to_string());
-    println!("{}", tmp_pathbuf.display());
+pub fn handle_paths(fs_entries: toml::value::Array, tmp_pathbuf: &Path) {
     let mut path_vec: Vec<PathBuf> = Vec::new();
 
     for entry in fs_entries.iter() {
@@ -23,7 +17,6 @@ pub fn handle_paths(fs_entries: toml::value::Array, datetime: &DelayedFormat<Str
                 match entry {
                     Ok(e) => {
                         let final_path = tmp_pathbuf.join(e.path().strip_prefix("/").unwrap());
-                        println!("{}", final_path.display());
                         copy(e.path(), final_path).unwrap();
                     }
                     Err(e) => {

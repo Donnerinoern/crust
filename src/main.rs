@@ -1,8 +1,10 @@
 mod filesystem;
 mod envvars;
 mod error;
+mod compress;
 
 use std::{fs, io::{Read, Write}, path::PathBuf};
+use compress::archive;
 use serde::Deserialize;
 use chrono::Local;
 use crate::{filesystem::handle_paths, envvars::handle_envvars};
@@ -52,6 +54,10 @@ fn main() {
         }
     };
     let datetime = Local::now().format("%Y%m%d_%H%M");
-    handle_paths(config.backup.paths, &datetime);
-    handle_envvars(config.backup.envvars, &datetime);
+    let mut tmp_pathbuf = PathBuf::new();
+    tmp_pathbuf.push("/tmp/crust");
+    tmp_pathbuf.push(datetime.to_string());
+    handle_paths(config.backup.paths, &tmp_pathbuf);
+    handle_envvars(config.backup.envvars, &tmp_pathbuf);
+    archive(&tmp_pathbuf);
 }

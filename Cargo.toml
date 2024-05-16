@@ -7,5 +7,6 @@ edition = "2021"
 chrono = { version = "0.4.38", features = ["alloc"] }
 home = "0.5.9"
 serde = { version = "1.0.201", features = ["derive"] }
+tar = "0.4.40"
 toml = "0.8.12"
 zstd = "0.13.1"
