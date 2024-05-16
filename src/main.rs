@@ -1,14 +1,16 @@
-mod directories;
+mod filesystem;
+mod envvars;
 mod error;
 
-use std::{fs, io::{Read, Write}, path::{Path, PathBuf}};
+use std::{fs, io::{Read, Write}, path::PathBuf};
 use serde::Deserialize;
-use crate::directories::handle_directories;
+use chrono::Local;
+use crate::{filesystem::handle_paths, envvars::handle_envvars};
 
 #[derive(Deserialize)]
 struct Backup {
     envvars: toml::value::Array,
-    directories: toml::value::Array
+    paths: toml::value::Array
 }
 
 #[derive(Deserialize)]
@@ -25,7 +27,6 @@ fn main() {
         }
     };
     let config_file_path = config_dir_path.join("config.toml");
-    println!("{}\n{}", config_dir_path.display(), config_file_path.display());
     let already_setup = match config_dir_path.try_exists() {
         Ok(b) => b,
         Err(e) => {
@@ -43,7 +44,6 @@ fn main() {
     let mut file = fs::File::open(config_file_path).unwrap();
     let mut src = String::new();
     file.read_to_string(&mut src);
-    println!("{}", src);
     let config: Config  = match toml::from_str(src.as_str()) {
         Ok(r) => r,
         Err(e) => {
@@ -51,6 +51,7 @@ fn main() {
             return;
         }
     };
-    println!("{:?}", config.backup.envvars);
-    handle_directories(config.backup.directories);
+    let datetime = Local::now().format("%Y%m%d_%H%M");
+    handle_paths(config.backup.paths, &datetime);
+    handle_envvars(config.backup.envvars, &datetime);
 }
