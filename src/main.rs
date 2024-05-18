@@ -1,10 +1,13 @@
+#![feature(string_remove_matches)]
+
 mod filesystem;
 mod envvars;
 mod error;
-mod compress;
+mod pack;
+mod unpack;
 
 use std::{env, fs, io::{Read, Write}, path::{Path, PathBuf}};
-use compress::archive;
+use pack::archive;
 use serde::Deserialize;
 use chrono::Local;
 use crate::{filesystem::handle_paths, envvars::handle_envvars};
