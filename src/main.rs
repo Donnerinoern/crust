@@ -3,7 +3,7 @@ mod envvars;
 mod error;
 mod compress;
 
-use std::{fs, io::{Read, Write}, path::PathBuf};
+use std::{env, fs, io::{Read, Write}, path::{Path, PathBuf}};
 use compress::archive;
 use serde::Deserialize;
 use chrono::Local;
@@ -20,7 +20,43 @@ struct Config {
     backup: Backup
 }
 
+enum Mode {
+    None,
+    Pack,
+    Unpack
+}
+
 fn main() {
+    let all_args: Vec<String> = env::args().collect();
+    let args: Vec<&str> = all_args[1..all_args.len()].iter().map(|a| a.as_str()).collect();
+    let tmp_path: &Path = &get_tmppath();
+    let mut mode = Mode::None;
+    let file_path = match args.len() {
+        1 => {
+            for arg in &args[..] {
+                mode = handle_arg(arg);
+            }
+            Ok(PathBuf::from(all_args.last().unwrap()))
+        }
+        _ => {
+            mode = Mode::None;
+            Err("No valid file path")
+        }
+    };
+    match mode {
+        Mode::Pack => {
+            pack(tmp_path, &file_path.unwrap());
+        }
+        Mode::Unpack => {
+            unpack(tmp_path, &file_path.unwrap());
+        }
+        Mode::None => {
+            help();
+        }
+    }
+}
+
+fn pack(tmp_path: &Path, output_path: &Path) {
     let config_dir_path = match home::home_dir() {
         Some(p) => p.join(".config/crust"),
         None => {
@@ -53,11 +89,44 @@ fn main() {
             return;
         }
     };
+
+    handle_paths(config.backup.paths, tmp_path);
+    handle_envvars(config.backup.envvars, tmp_path);
+    archive(tmp_path);
+}
+
+fn unpack(tmp_path: &Path, input_path: &Path) {
+
+}
+
+fn handle_arg(arg: &str) -> Mode {
+    match arg {
+        "-p" | "--pack" => {
+            Mode::Pack
+        }
+        "-u" | "--unpack" => {
+            Mode::Unpack
+        }
+        _ => {
+            println!("Unknown arg: {}", arg);
+            Mode::None
+        }
+    }
+}
+
+fn get_tmppath() -> PathBuf {
     let datetime = Local::now().format("%Y%m%d_%H%M");
     let mut tmp_pathbuf = PathBuf::new();
     tmp_pathbuf.push("/tmp/crust");
     tmp_pathbuf.push(datetime.to_string());
-    handle_paths(config.backup.paths, &tmp_pathbuf);
-    handle_envvars(config.backup.envvars, &tmp_pathbuf);
-    archive(&tmp_pathbuf);
+    tmp_pathbuf
+}
+
+fn help() {
+    println!("Usage: crust [<args...>] <archive>
+
+Args:
+-h                  --help
+-p                  --pack
+-u                  --unpack");
 }

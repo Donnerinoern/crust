@@ -15,7 +15,7 @@ pub fn archive(tmp_path: &Path) {
 fn compress(path: &Path) {
     let archive = File::open(path).unwrap();
     let mut pathbuf = path.to_path_buf();
-    pathbuf.set_extension("tar.zstd");
+    pathbuf.set_extension("tar.zst");
     let compressed_archive = File::create_new(pathbuf).unwrap();
     let bufreader = BufReader::new(archive);
     let bufwriter = BufWriter::new(compressed_archive);
