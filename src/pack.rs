@@ -1,6 +1,7 @@
 use tar::Builder;
 use zstd::stream::copy_encode;
 use std::{collections::VecDeque, env, fs::File, path::Path};
+use crate::get_datetime;
 
 pub fn archive(tmp_path: &Path) {
     let byte_vec: VecDeque<u8> = VecDeque::new();
@@ -12,7 +13,7 @@ pub fn archive(tmp_path: &Path) {
 
 fn compress(byte_vec: &mut VecDeque<u8>) {
     let mut path = env::current_dir().unwrap();
-    path.push("archive");
+    path.push(get_datetime());
     path.set_extension("tar.zst");
     let file = File::create_new(path).unwrap();
     copy_encode(byte_vec, file, 0).unwrap();

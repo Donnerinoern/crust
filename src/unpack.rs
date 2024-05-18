@@ -1,4 +1,4 @@
-use std::{fs::{copy, create_dir, create_dir_all, read_dir, DirEntry, File}, io::{BufReader, BufWriter}, path::{Path, PathBuf}};
+use std::{collections::VecDeque, fs::{copy, create_dir, create_dir_all, read_dir, DirEntry, File}, io::BufReader, path::{Path, PathBuf}};
 use zstd::stream::copy_decode;
 use tar::Archive;
 
@@ -10,21 +10,18 @@ pub fn decompress(tmp_path: &Path, input_path: &Path) {
         }
         Ok(f) => {
             let reader = BufReader::new(f);
-            let mut archive_path = PathBuf::from(tmp_path);
-            archive_path.set_extension("tar");
             create_dir("/tmp/crust").unwrap();
-            let archive_file = File::create_new(&archive_path).unwrap();
-            let writer = BufWriter::new(archive_file);
-            copy_decode(reader, writer).unwrap();
-            unpack(&archive_path, tmp_path);
+            let mut bytes_vec: VecDeque<u8> = VecDeque::new();
+            copy_decode(reader, &mut bytes_vec).unwrap();
+            unpack(tmp_path, bytes_vec);
         }
     }
 }
 
-fn unpack(archive_path: &Path, tmp_path: &Path) {
-    let mut archive = Archive::new(File::open(archive_path).unwrap());
+fn unpack(tmp_path: &Path, bytes_vec: VecDeque<u8>) {
     let mut tmp_pathbuf = PathBuf::from(tmp_path);
     tmp_pathbuf.push("unpacked");
+    let mut archive = Archive::new(bytes_vec);
     archive.unpack(&tmp_pathbuf).unwrap();
     copy_or_overwrite(&tmp_pathbuf);
 }

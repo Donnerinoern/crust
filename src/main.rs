@@ -118,16 +118,15 @@ fn handle_arg(arg: &str) -> Mode {
 }
 
 fn get_tmppath() -> PathBuf {
-    let datetime = Local::now().format("%Y%m%d_%H%M");
     let mut tmp_pathbuf = PathBuf::new();
     tmp_pathbuf.push("/tmp/crust");
-    tmp_pathbuf.push(datetime.to_string());
+    tmp_pathbuf.push(get_datetime());
     tmp_pathbuf
 }
 
-// pub fn get_datetime() -> &str {
-//     let datetime = Local::now().format("%Y%m%d_%H%M");
-// }
+pub fn get_datetime() -> String {
+    Local::now().format("%Y%m%d_%H%M").to_string()
+}
 
 fn help() {
     println!("Usage: crust [<args...>] <archive>
