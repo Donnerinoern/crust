@@ -125,6 +125,10 @@ fn get_tmppath() -> PathBuf {
     tmp_pathbuf
 }
 
+// pub fn get_datetime() -> &str {
+//     let datetime = Local::now().format("%Y%m%d_%H%M");
+// }
+
 fn help() {
     println!("Usage: crust [<args...>] <archive>
 
