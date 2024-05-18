@@ -1,20 +1,20 @@
-use std::{fs::{copy, read_dir, DirEntry, File}, io::{BufReader, BufWriter}, path::{Path, PathBuf}, str::FromStr};
+use std::{fs::{copy, create_dir, create_dir_all, read_dir, DirEntry, File}, io::{BufReader, BufWriter}, path::{Path, PathBuf}};
 use zstd::stream::copy_decode;
 use tar::Archive;
 
-pub fn decompress(path_str: &str, tmp_path: &Path) {
-    let compressed_archive= File::open(path_str);
+pub fn decompress(tmp_path: &Path, input_path: &Path) {
+    let compressed_archive= File::open(input_path);
     match compressed_archive {
         Err(e) => {
             println!("{}", e);
         }
         Ok(f) => {
             let reader = BufReader::new(f);
-            let mut archive_path_string = String::from_str(path_str).unwrap();
-            archive_path_string.remove_matches(".zst");
-            let archive_path = PathBuf::from_str(archive_path_string.as_str()).unwrap();
-            let archive = File::create_new(&archive_path).unwrap();
-            let writer = BufWriter::new(archive);
+            let mut archive_path = PathBuf::from(tmp_path);
+            archive_path.set_extension("tar");
+            create_dir("/tmp/crust").unwrap();
+            let archive_file = File::create_new(&archive_path).unwrap();
+            let writer = BufWriter::new(archive_file);
             copy_decode(reader, writer).unwrap();
             unpack(&archive_path, tmp_path);
         }
@@ -59,6 +59,9 @@ fn traverse_and_copy(dir: DirEntry, path: &Path) {
                 } else if e.file_type().unwrap().is_file() {
                     let mut dest_string = String::from(e.path().to_str().unwrap());
                     dest_string.remove_matches(path.to_str().unwrap());
+                    let mut dest_path = PathBuf::from(&dest_string);
+                    dest_path.pop();
+                    create_dir_all(dest_path).unwrap();
                     copy(e.path(), dest_string).unwrap();
                 }
             }

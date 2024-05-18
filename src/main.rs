@@ -31,11 +31,11 @@ enum Mode {
 
 fn main() {
     let all_args: Vec<String> = env::args().collect();
-    let args: Vec<&str> = all_args[1..all_args.len()].iter().map(|a| a.as_str()).collect();
+    let args: Vec<&str> = all_args[1..all_args.len()-1].iter().map(|a| a.as_str()).collect();
     let tmp_path: &Path = &get_tmppath();
     let mut mode = Mode::None;
     let file_path = match args.len() {
-        1 => {
+        1 | 2 => {
             for arg in &args[..] {
                 mode = handle_arg(arg);
             }
@@ -99,7 +99,7 @@ fn pack(tmp_path: &Path, output_path: &Path) {
 }
 
 fn unpack(tmp_path: &Path, input_path: &Path) {
-
+    unpack::decompress(tmp_path, input_path)
 }
 
 fn handle_arg(arg: &str) -> Mode {
