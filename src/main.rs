@@ -1,5 +1,6 @@
 #![feature(string_remove_matches)]
 #![feature(fs_try_exists)]
+#![feature(tcplistener_into_incoming)]
 
 mod filesystem;
 mod envvars;
@@ -16,7 +17,7 @@ use toml::de::Error;
 #[derive(Deserialize)]
 struct Network {
     ip_addr: Option<Ipv4Addr>,
-    port: Option<u32>
+    port: Option<u16>,
 }
 
 #[derive(Deserialize)]
@@ -53,17 +54,16 @@ fn main() {
             pack::pack(&config.0, &config.1);
         }
         Mode::Unpack => {
-            // unpack(&config.0);
             unpack::decompress(&config.0);
         }
         Mode::None => {
             help();
         }
         Mode::Listen => {
-            network::create_tcp_listener();
+            network::create_tcp_listener(&config.1.network.unwrap());
         }
         Mode::Connect => {
-            network::create_tcp_stream();
+            network::create_tcp_stream(&config.1.network.unwrap(), &config.0.file_path.unwrap());
         }
     }
 }
@@ -138,7 +138,7 @@ fn get_config_and_handle_args() -> (Config, TomlConfig) {
         _ => {
             config.mode = parse_mode(&args.nth(1).unwrap());
             let mut ip_addr: Option<Ipv4Addr> = None;
-            let mut port: Option<u32> = None;
+            let mut port: Option<u16> = None;
             while let Some(a) = args.next() {
                 match a.as_str() {
                     "-a" | "--address" => {
@@ -163,7 +163,7 @@ fn get_config_and_handle_args() -> (Config, TomlConfig) {
                         Some(ref toml_network) => {
                             let mut n = Network {
                                 ip_addr: toml_network.ip_addr,
-                                port: toml_network.port
+                                port: toml_network.port,
                             };
                             if ip_addr.is_some() {
                                 n.ip_addr = ip_addr;
@@ -176,7 +176,7 @@ fn get_config_and_handle_args() -> (Config, TomlConfig) {
                         None => {
                             Network {
                                 ip_addr,
-                                port
+                                port,
                             }
                         }
                     };
