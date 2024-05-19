@@ -1,6 +1,6 @@
 use std::{env, fs::File, io::{BufWriter, Write}, path::Path};
 
-pub fn handle_envvars(toml_envvars: toml::value::Array, tmp_pathbuf: &Path) {
+pub fn handle_envvars(toml_envvars: &toml::value::Array, tmp_pathbuf: &Path) {
     let envvars_vec: Vec<&str> = toml_envvars.iter().map(|x| x.as_str().unwrap()).collect();
     let envvars = env::vars();
     let chosen_envvars = envvars.filter(|x| envvars_vec.contains(&x.0.as_str()));

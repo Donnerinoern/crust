@@ -6,12 +6,18 @@ mod envvars;
 mod error;
 mod pack;
 mod unpack;
+mod network;
 
-use std::{env, fs, io::{Read, Write}, path::{Path, PathBuf}};
-use pack::archive;
+use std::{env::{self}, fs, io::{Read, Write}, net::Ipv4Addr, path::PathBuf, str::FromStr};
 use serde::Deserialize;
 use chrono::Local;
-use crate::{filesystem::handle_paths, envvars::handle_envvars};
+use toml::de::Error;
+
+#[derive(Deserialize)]
+struct Network {
+    ip_addr: Option<Ipv4Addr>,
+    port: Option<u32>
+}
 
 #[derive(Deserialize)]
 struct Backup {
@@ -20,47 +26,49 @@ struct Backup {
 }
 
 #[derive(Deserialize)]
-struct Config {
+struct TomlConfig {
+    network: Option<Network>,
     backup: Backup
+}
+
+struct Config {
+    mode: Mode,
+    network: Option<Network>,
+    file_path: Option<PathBuf>,
+    tmp_path: PathBuf
 }
 
 enum Mode {
     None,
     Pack,
-    Unpack
+    Unpack,
+    Listen,
+    Connect
 }
 
 fn main() {
-    let all_args: Vec<String> = env::args().collect();
-    let args: Vec<&str> = all_args[1..all_args.len()-1].iter().map(|a| a.as_str()).collect();
-    let tmp_path: &Path = &get_tmppath();
-    let mut mode = Mode::None;
-    let file_path = match args.len() {
-        1 | 2 => {
-            for arg in &args[..] {
-                mode = handle_arg(arg);
-            }
-            Ok(PathBuf::from(all_args.last().unwrap()))
-        }
-        _ => {
-            mode = Mode::None;
-            Err("No valid file path")
-        }
-    };
-    match mode {
+    let config = get_config_and_handle_args();
+    match config.0.mode {
         Mode::Pack => {
-            pack(tmp_path, &file_path.unwrap());
+            pack::pack(&config.0, &config.1);
         }
         Mode::Unpack => {
-            unpack(tmp_path, &file_path.unwrap());
+            // unpack(&config.0);
+            unpack::decompress(&config.0);
         }
         Mode::None => {
             help();
         }
+        Mode::Listen => {
+            network::create_tcp_listener();
+        }
+        Mode::Connect => {
+            network::create_tcp_stream();
+        }
     }
 }
 
-fn pack(tmp_path: &Path, output_path: &Path) {
+fn parse_toml_config() -> Result<TomlConfig, Error> {
     let config_dir_path = home::home_dir().unwrap_or_default().join(".config/crust");
     let config_file_path = config_dir_path.join("config.toml");
     match config_file_path.try_exists() {
@@ -84,36 +92,111 @@ fn pack(tmp_path: &Path, output_path: &Path) {
     let mut file = fs::File::open(config_file_path).unwrap();
     let mut src = String::new();
     file.read_to_string(&mut src);
-    let config: Config  = match toml::from_str(src.as_str()) {
-        Ok(r) => r,
-        Err(e) => {
-            println!("{}", e);
-            return;
-        }
-    };
-
-    handle_paths(config.backup.paths, tmp_path);
-    handle_envvars(config.backup.envvars, tmp_path);
-    archive(tmp_path);
+    toml::from_str(src.as_str())
 }
 
-fn unpack(tmp_path: &Path, input_path: &Path) {
-    unpack::decompress(tmp_path, input_path)
-}
-
-fn handle_arg(arg: &str) -> Mode {
-    match arg {
-        "-p" | "--pack" => {
+fn parse_mode(mode: &str) -> Mode {
+    match mode {
+        "pack" => {
             Mode::Pack
         }
-        "-u" | "--unpack" => {
+        "unpack" => {
             Mode::Unpack
         }
+        "listen" => {
+            Mode::Listen
+        }
+        "connect" => {
+            Mode::Connect
+        }
         _ => {
-            println!("Unknown arg: {}", arg);
+            println!("Error: Unknown mode '{}'", mode);
             Mode::None
         }
     }
+}
+
+fn get_config_and_handle_args() -> (Config, TomlConfig) {
+    let mut config = Config {
+        mode: Mode::None,
+        network: None,
+        file_path: None,
+        tmp_path: get_tmppath()
+    };
+    let toml_config = parse_toml_config().unwrap();
+    let mut args = env::args().peekable();
+    match env::args().len() {
+        1 => config.mode = Mode::None,
+        2 => {
+            let mut mode = parse_mode(&args.nth(1).unwrap());
+            if let Mode::Unpack = mode {
+                println!("Error: Missing file path");
+                mode = Mode::None;
+            }
+            config.mode = mode;
+        }
+        _ => {
+            config.mode = parse_mode(&args.nth(1).unwrap());
+            let mut ip_addr: Option<Ipv4Addr> = None;
+            let mut port: Option<u32> = None;
+            while let Some(a) = args.next() {
+                match a.as_str() {
+                    "-a" | "--address" => {
+                        ip_addr = Some(Ipv4Addr::from_str(&args.next().unwrap()).unwrap());
+                    }
+                    "-p" | "--port" => {
+                        port = Some(args.next().unwrap().parse().unwrap());
+                    }
+                    _ => {
+                        if args.peek().is_none() {
+                            config.file_path = Some(a.into());
+                        } else {
+                            println!("Error: Unknown argument '{}'", a);
+                            config.mode = Mode::None;
+                        }
+                    }
+                }
+            }
+            match config.mode {
+                Mode::Listen | Mode::Connect => {
+                    let network: Network = match toml_config.network {
+                        Some(ref toml_network) => {
+                            let mut n = Network {
+                                ip_addr: toml_network.ip_addr,
+                                port: toml_network.port
+                            };
+                            if ip_addr.is_some() {
+                                n.ip_addr = ip_addr;
+                            }
+                            if port.is_some() {
+                                n.port = port;
+                            }
+                            n
+                        }
+                        None => {
+                            Network {
+                                ip_addr,
+                                port
+                            }
+                        }
+                    };
+                    if network.ip_addr.is_none() {
+                        config.mode = Mode::None;
+                        println!("Error: Missing IP-address");
+                    }
+                    if network.port.is_none() {
+                        config.mode = Mode::None;
+                        println!("Error: Missing port");
+                    }
+                    config.network = Some(network);
+                }
+                _ => {
+
+                }
+            }
+        }
+    }
+    (config, toml_config)
 }
 
 fn get_tmppath() -> PathBuf {
@@ -128,16 +211,32 @@ pub fn get_datetime() -> String {
 }
 
 fn help() {
-    println!("Usage: crust [<args...>] <archive>
+    println!("Usage:
+  crust command [options...] [<arg>] [<file>]
 
-Args:
--h                  --help
--p                  --pack
--u                  --unpack");
+Commands:
+  pack                      -- packs the files/directories declared in config.toml and creates a compressed archive
+  unpack                    -- unbacks the compressed archive and moves the contained files to their respective paths
+  listen                    -- listens for incoming connections on specified address and port
+  connect                   -- connect to the specified address and port
+
+Options:
+  --help    | -h            -- prints this message
+  --address | -a <addr>     -- specifies IP-address for incoming/outgoing connection(s)
+  --port    | -p <port>     -- specifies port for incoming/outgoing connection(s)
+
+Example usage:
+  crust pack
+  crust unpack archive.tar.zst
+  crust listen -a localhost -p 5000
+  crust connect");
 }
 
 fn get_example_config() -> String {
     "# Example config
+[network]
+ip_addr = \"localhost\"
+port = 5000
 
 [backup]
 envvars = [

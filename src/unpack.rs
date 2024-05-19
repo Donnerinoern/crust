@@ -1,10 +1,10 @@
 use std::{collections::VecDeque, fs::{copy, create_dir_all, read_dir, DirEntry, File}, io::BufReader, path::{Path, PathBuf}};
 use zstd::stream::copy_decode;
 use tar::Archive;
-use crate::filesystem;
+use crate::{Config, filesystem};
 
-pub fn decompress(tmp_path: &Path, input_path: &Path) {
-    let compressed_archive = File::open(input_path);
+pub fn decompress(config: &Config) {
+    let compressed_archive = File::open(config.file_path.as_ref().unwrap());
     match compressed_archive {
         Err(e) => {
             println!("{}", e);
@@ -14,7 +14,7 @@ pub fn decompress(tmp_path: &Path, input_path: &Path) {
             filesystem::create_tmp_dir();
             let mut bytes_vec: VecDeque<u8> = VecDeque::new();
             copy_decode(reader, &mut bytes_vec).unwrap();
-            unpack(tmp_path, bytes_vec);
+            unpack(&config.tmp_path, bytes_vec);
         }
     }
 }

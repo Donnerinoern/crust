@@ -1,7 +1,7 @@
 use std::{fs::{self, copy, create_dir_all, read_dir, DirBuilder}, path::{Path, PathBuf}, str::FromStr};
 use home::home_dir;
 
-pub fn handle_paths(fs_entries: toml::value::Array, tmp_pathbuf: &Path) {
+pub fn handle_paths(fs_entries: &toml::value::Array, tmp_pathbuf: &Path) {
     let mut path_vec: Vec<PathBuf> = Vec::new();
 
     for entry in fs_entries.iter() {
