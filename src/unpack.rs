@@ -1,16 +1,17 @@
-use std::{collections::VecDeque, fs::{copy, create_dir, create_dir_all, read_dir, DirEntry, File}, io::BufReader, path::{Path, PathBuf}};
+use std::{collections::VecDeque, fs::{copy, create_dir_all, read_dir, DirEntry, File}, io::BufReader, path::{Path, PathBuf}};
 use zstd::stream::copy_decode;
 use tar::Archive;
+use crate::filesystem;
 
 pub fn decompress(tmp_path: &Path, input_path: &Path) {
-    let compressed_archive= File::open(input_path);
+    let compressed_archive = File::open(input_path);
     match compressed_archive {
         Err(e) => {
             println!("{}", e);
         }
         Ok(f) => {
             let reader = BufReader::new(f);
-            create_dir("/tmp/crust").unwrap();
+            filesystem::create_tmp_dir();
             let mut bytes_vec: VecDeque<u8> = VecDeque::new();
             copy_decode(reader, &mut bytes_vec).unwrap();
             unpack(tmp_path, bytes_vec);

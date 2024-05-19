@@ -1,4 +1,5 @@
 #![feature(string_remove_matches)]
+#![feature(fs_try_exists)]
 
 mod filesystem;
 mod envvars;
@@ -60,26 +61,24 @@ fn main() {
 }
 
 fn pack(tmp_path: &Path, output_path: &Path) {
-    let config_dir_path = match home::home_dir() {
-        Some(p) => p.join(".config/crust"),
-        None => {
-            println!("Unable to find your home directory!");
-            PathBuf::new()
-        }
-    };
+    let config_dir_path = home::home_dir().unwrap_or_default().join(".config/crust");
     let config_file_path = config_dir_path.join("config.toml");
-    let already_setup = match config_dir_path.try_exists() {
-        Ok(b) => b,
-        Err(e) => {
-            println!("{}", e);
-            false
+    match config_file_path.try_exists() {
+        Ok(exists) => {
+            if !exists {
+                if let Err(e) = fs::create_dir_all(&config_dir_path) {
+                    println!("{}", e);
+                }
+                let file = fs::File::create(&config_file_path);
+                match file {
+                    Ok(mut f) => {
+                        f.write_all(get_example_config().as_bytes()).unwrap();
+                    }
+                    Err(e) => println!("{}", e)
+                }
+            }
         }
-    };
-    if !already_setup {
-        fs::create_dir_all(&config_dir_path).unwrap();
-        let mut file = fs::File::create(&config_file_path).unwrap();
-        file.write_all(config_dir_path.to_str().unwrap().as_bytes()); // Write a valid TOML
-                                                                           // config instead
+        Err(e) => println!("{}", e)
     }
 
     let mut file = fs::File::open(config_file_path).unwrap();
@@ -125,7 +124,7 @@ fn get_tmppath() -> PathBuf {
 }
 
 pub fn get_datetime() -> String {
-    Local::now().format("%Y%m%d_%H%M").to_string()
+    Local::now().format("%Y%m%d_%H%M%S").to_string()
 }
 
 fn help() {
@@ -135,4 +134,18 @@ Args:
 -h                  --help
 -p                  --pack
 -u                  --unpack");
+}
+
+fn get_example_config() -> String {
+    "# Example config
+
+[backup]
+envvars = [
+    # \"EDITOR\",
+    # \"TERM\"
+]
+paths = [
+    # \"~/.config/nvim\",
+    # \"/etc/makepkg.conf\"
+]".to_string()
 }

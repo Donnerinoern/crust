@@ -1,4 +1,4 @@
-use std::{fs::{copy, read_dir, DirBuilder}, path::{PathBuf, Path}, str::FromStr};
+use std::{fs::{self, copy, create_dir_all, read_dir, DirBuilder}, path::{Path, PathBuf}, str::FromStr};
 use home::home_dir;
 
 pub fn handle_paths(fs_entries: toml::value::Array, tmp_pathbuf: &Path) {
@@ -42,4 +42,20 @@ fn format_fs_path(dir_string: &toml::Value) -> PathBuf {
     let mut mut_dir_string = String::from_str(dir_string.as_str().unwrap()).unwrap_or_default();
     mut_dir_string = mut_dir_string.replace("~", home_dir_str);
     PathBuf::from(mut_dir_string)
+}
+
+pub fn create_tmp_dir() {
+    let path = Path::new("/tmp/crust");
+    match fs::try_exists(path) {
+        Ok(exists) => {
+            if !exists {
+                if let Err(e) = create_dir_all("/tmp/crust") {
+                    println!("{}", e);
+                }
+            }
+        }
+        Err(e) => {
+            println!("{}", e);
+        }
+    }
 }
